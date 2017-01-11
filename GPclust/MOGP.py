@@ -18,11 +18,10 @@ class MOGP(CollapsedMixture):
     Y        - the observed values at the times corresponding to X. A list of np.arrays.
     Z        - inducing point positions (M x 1 numpy array)
     kernF    - A GPflow kernel to model the function associated with each cluster.
-    likelihood  - A GPflow Clikelihood object to represnt (potentially non-gaussian) obsevation distributions.
-    alpha    - The a priori Dirichlet concentrationn parameter (default 1.)
+    likelihood  - A GPflow Clikelihood object to represent (potentially non-gaussian) obsevation distributions.
+    alpha    - The a priori Dirichlet concentration parameter (default 1.)
     prior_Z  - Either 'symmetric' or 'dp', specifies whether to use a symmetric Dirichlet
                prior for the clusters, or a (truncated) Dirichlet Process.
-    name     - A convenient string for printing the model (default MOHGP)
 
     """
     def __init__(self, X, Y, Z=None, kern=None, likelihood=None, num_clusters=2, alpha=1., prior_Z='symmetric'):
@@ -56,17 +55,16 @@ class MOGP(CollapsedMixture):
         loglik = 0.
         phi = tf.nn.softmax(self.logphi)
         for i, (Xi, Yi) in enumerate(zip(self.X, self.Y)):
-            # get mean and variance of each GP at the obseved points. the
+            # get mean and variance of each GP at the observed points. the
             # different mean and variances for the clusters are stored in the
             # columns.
             mu, var = GPflow.conditionals.conditional(Xi, self.Z, self.kern, self.q_mu,
                                                q_sqrt=self.q_sqrt, full_cov=False, whiten=False)
-
             # duplicate columns of Y so that we can compute likelihoods for all clusters in one go.
-            Ystacked = tf.tile(Yi, [1, self.num_clusters])
+            Ystacked = tf.to_double(tf.tile(Yi, [1, self.num_clusters]))
 
             # Get variational expectations.
-            var_exp = self.likelihood.variational_expectations(fmean, fvar, Ystacked)
+            var_exp = self.likelihood.variational_expectations(mu, var, Ystacked)
 
             phi_i = phi[i]
             loglik += tf.reduce_sum(phi_i * tf.reduce_sum(var_exp, 0))
@@ -84,9 +82,6 @@ class MOGP(CollapsedMixture):
         mu, var = GPflow.conditionals.conditional(Xi, self.Z, self.kern, self.q_mu,
                                            q_sqrt=self.q_sqrt, full_cov=False, whiten=False)
         return self.likelihood.predict_mean_and_var(mu, var)
-
-
-
 
 
     @GPflow.param.AutoFlow((tf.float64, [None, None]))
